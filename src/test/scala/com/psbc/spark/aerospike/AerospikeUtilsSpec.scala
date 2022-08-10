@@ -1,6 +1,7 @@
 package com.psbc.spark.aerospike
 
 import com.aerospike.client.{AerospikeClient, Info}
+import com.psbc.spark.aerospike.AerospikeUtils.resourceUDF
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 class AerospikeUtilsSpec extends FlatSpec with Matchers with BeforeAndAfter {

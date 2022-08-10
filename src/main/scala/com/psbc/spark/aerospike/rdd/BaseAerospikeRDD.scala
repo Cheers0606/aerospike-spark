@@ -3,6 +3,7 @@ package com.psbc.spark.aerospike.rdd
 import com.aerospike.client.AerospikeClient
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.ClientPolicy
+import com.psbc.spark.aerospike.AqlParser
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD

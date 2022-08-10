@@ -3,6 +3,7 @@ package com.psbc.spark.aerospike.rdd
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.query.{Filter, RecordSet, Statement}
 import com.aerospike.client.{AerospikeClient, Value}
+import com.psbc.spark.aerospike.AqlParser
 import org.apache.spark._
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sql._

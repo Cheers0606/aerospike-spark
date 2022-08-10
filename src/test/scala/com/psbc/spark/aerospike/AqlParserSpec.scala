@@ -1,5 +1,6 @@
 package com.psbc.spark.aerospike
 
+import com.psbc.spark.aerospike.AqlParser._
 import org.scalatest.{FlatSpec, Matchers}
 
 

@@ -1,5 +1,7 @@
 package com.psbc.spark.aerospike
 
+import com.psbc.spark.aerospike.rdd.{FilterLong, FilterNone, FilterRange, FilterString, QueryParams}
+
 object AqlParser {
 
   def removeDoubleSpaces(s: String): String = if (!s.contains("  ")) s else removeDoubleSpaces(s.replace("  ", " "))

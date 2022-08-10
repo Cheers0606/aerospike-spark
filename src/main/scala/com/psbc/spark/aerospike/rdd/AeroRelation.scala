@@ -4,6 +4,7 @@ import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.QueryPolicy
 import com.aerospike.client.query.{RecordSet, Statement}
 import com.aerospike.client.{AerospikeClient, Info}
+import com.psbc.spark.aerospike.{AerospikeUtils, AqlParser}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
