@@ -76,7 +76,8 @@ class AerospikeRDD(
 
     res.iterator.asScala.map { rs =>
       if (!useUDF) {
-        Row.fromSeq(bins.map(rs.record.bins.get(_)))
+        val pk: String = rs.key.userKey.toString
+        Row.fromSeq(Seq.concat(bins.map(rs.record.bins.get(_)),Seq(pk)))
       }
       else {
         rs.record.bins.get("SUCCESS") match {

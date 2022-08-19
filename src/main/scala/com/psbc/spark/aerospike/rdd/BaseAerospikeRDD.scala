@@ -9,6 +9,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.types.{StringType, StructField}
 
 import java.net.InetAddress
 
@@ -89,10 +90,14 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
                   partitionsPerServer: Int = 1
                   ) = {
 
-    val rel = AeroRelation(initialHost, select, partitionsPerServer)(cont)
-    val schema = rel.schema
-//    cont.applySchema(rel.buildScan(schema.fieldNames.toArray, Array[Filter]()), schema)
-    cont.createDataFrame(rel.buildScan(schema.fieldNames, Array[Filter]()), schema)
+    val rel: AeroRelation = AeroRelation(initialHost, select, partitionsPerServer)(cont)
+
+    var schema = rel.schema
+    if(rel.schema.nonEmpty) {
+      schema = schema.add(StructField("pk", StringType, nullable = true))
+    }
+    //    cont.applySchema(rel.buildScan(schema.fieldNames.toArray, Array[Filter]()), schema)
+    cont.createDataFrame(rel.buildScan(rel.schema.fieldNames, Array[Filter]()), schema)
   }
 
 

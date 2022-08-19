@@ -46,7 +46,7 @@ public class SparkApp {
                 .aeroSInput("localhost:3000", "select * from database.risk_mgt_variables", sqlContext, 5);
         rowDataset.show();
         rowDataset.printSchema();
-        sparkSession.close;
+        sparkSession.close();
     }
 }
 
