@@ -1,7 +1,7 @@
 package com.psbc.spark.aerospike.rdd
 
 import com.aerospike.client.cluster.Node
-import com.aerospike.client.query.{Filter, RecordSet, Statement}
+import com.aerospike.client.query.{Filter, PredExp, RecordSet, Statement}
 import com.aerospike.client.{AerospikeClient, Value}
 import com.psbc.spark.aerospike.AqlParser
 import org.apache.spark._
@@ -9,6 +9,7 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sql._
 import org.apache.spark.sql.types.StructType
 
+import java.util.Calendar
 import scala.collection.JavaConverters._
 
 
@@ -21,11 +22,13 @@ class AerospikeRDD(
                     val filterType: AeroFilterType,
                     val filterBin: String,
                     val filterStringVal: String,
+                    val lutStart: Calendar,
+                    val lutEnd: Calendar,
                     @transient override val filterVals: Seq[(Long, Long)],
                     val attrs: Seq[(SparkFilterType, String, String, Seq[(Long, Long)])] = Seq(),
                     val sch: StructType = null,
                     useUdfWithoutIndexQuery: Boolean = false
-                    ) extends BaseAerospikeRDD(sc, aerospikeHosts, filterVals) {
+                  ) extends BaseAerospikeRDD(sc, aerospikeHosts, filterVals) {
   @DeveloperApi
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     val partition: AerospikePartition = split.asInstanceOf[AerospikePartition]
@@ -67,6 +70,29 @@ class AerospikeRDD(
     logInfo("RDD: " + split.index + ", Connecting to: " + endpoint._1)
 
     val client = new AerospikeClient(null, endpoint._1, endpoint._2)
+    if (lutStart != null && lutEnd != null) {
+      logInfo("Query Predicate: Record updated between " + lutStart + "," + lutEnd)
+      stmt.setPredExp(PredExp.recLastUpdate,
+        PredExp.integerValue(lutStart),
+        PredExp.integerGreaterEq,
+        PredExp.recLastUpdate,
+        PredExp.integerValue(lutEnd),
+        PredExp.integerLess,
+        PredExp.and(2)
+      )
+    } else if (lutStart != null && lutEnd == null) {
+      logInfo("Query Predicate: Record updated after(>=) " + lutStart)
+      stmt.setPredExp(PredExp.recLastUpdate,
+        PredExp.integerValue(lutStart),
+        PredExp.integerGreaterEq
+      )
+    } else if (lutStart == null && lutEnd != null) {
+      logInfo("Query Predicate: Record updated before(<) " + lutEnd)
+      stmt.setPredExp(PredExp.recLastUpdate,
+        PredExp.integerValue(lutEnd),
+        PredExp.integerLess
+      )
+    }
     val res: RecordSet = client.queryNode(null, stmt, client.getNode(endpoint._3))
 
     context.addTaskCompletionListener(context => {
@@ -77,7 +103,7 @@ class AerospikeRDD(
     res.iterator.asScala.map { rs =>
       if (!useUDF) {
         val pk: String = rs.key.userKey.toString
-        Row.fromSeq(Seq.concat(bins.map(rs.record.bins.get(_)),Seq(pk)))
+        Row.fromSeq(Seq.concat(bins.map(rs.record.bins.get(_)), Seq(pk)))
       }
       else {
         rs.record.bins.get("SUCCESS") match {
@@ -111,7 +137,7 @@ object AerospikeRDD {
 
   /**
    *
-   * @param asql_statement ASQL statement to parse, select only
+   * @param asql_statement                 ASQL statement to parse, select only
    * @param numPartitionsPerServerForRange number partitions per Aerospike snode
    * @return namespace, set, bins, filterType, filterBin, filterVals, filterStringVal
    */

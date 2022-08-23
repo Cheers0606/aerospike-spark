@@ -12,6 +12,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{StringType, StructField}
 
 import java.net.InetAddress
+import java.util.Calendar
 
 
 //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
@@ -20,7 +21,7 @@ case class AerospikePartition(index: Int,
                               endpoint: (String, Int, String),
                               startRange: Long,
                               endRange: Long
-                               ) extends Partition()
+                             ) extends Partition()
 
 
 //class AerospikePartitioner(val aerospikeHosts: Array[String]) extends HashPartitioner(aerospikeHosts.length) {
@@ -37,7 +38,7 @@ abstract class BaseAerospikeRDD(
                                  @transient val sc: SparkContext,
                                  @transient val aerospikeHosts: Array[Node],
                                  val filterVals: Seq[(Long, Long)]
-                                 )
+                               )
   extends RDD[Row](sc, Seq.empty) with Logging {
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
@@ -52,27 +53,37 @@ abstract class BaseAerospikeRDD(
            node: Node = aerospikeHosts(i)
            aliases = node.getHost
            (j, k) <- filterVals.zipWithIndex
-           resultName =  node.getHost.name
+           resultName = node.getHost.name
            part = new AerospikePartition(i * filterVals.length + k, (resultName, node.getHost.port, node.getName), j._1, j._2).asInstanceOf[Partition]
-      } yield part
+           } yield part
     }.toArray
   }
 }
 
 
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
-
   def aeroInput(
                  initialHost: String,
                  select: String,
                  partitionsPerServer: Int = 1,
- 		 timeout: Int = 1000
-                 ) = {
+                 timeout: Int = 1000
+               ) = {
+    aeroInputWithLut(initialHost, select, null, null, partitionsPerServer, timeout)
+  }
+
+  def aeroInputWithLut(
+                        initialHost: String,
+                        select: String,
+                        lutStart: Calendar,
+                        lutEnd: Calendar,
+                        partitionsPerServer: Int = 1,
+                        timeout: Int = 1000
+                      ) = {
     val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AqlParser.parseSelect(select, partitionsPerServer).toArray()
     var hosts: Array[Node] = null
     val policy = new ClientPolicy()
     val splitHost = initialHost.split(":")
-    policy.timeout=timeout
+    policy.timeout = timeout
     val client = new AerospikeClient(policy, splitHost(0), splitHost(1).toInt)
 
     try {
@@ -80,7 +91,7 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     } finally {
       client.close()
     }
-    new AerospikeRDD(sc, hosts, namespace, set, bins, filterType, filterBin, filterStringVal, filterVals)
+    new AerospikeRDD(sc, hosts, namespace, set, bins, filterType, filterBin, filterStringVal, lutStart, lutEnd, filterVals)
   }
 
   def aeroSInput(
@@ -88,18 +99,28 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
                   select: String,
                   cont: SQLContext,
                   partitionsPerServer: Int = 1
-                  ) = {
+                ) = {
+    aeroSInputWithLut(initialHost, select, cont, null, null, partitionsPerServer)
+  }
 
-    val rel: AeroRelation = AeroRelation(initialHost, select, partitionsPerServer)(cont)
+  def aeroSInputWithLut(
+                         initialHost: String,
+                         select: String,
+                         cont: SQLContext,
+                         lutStart: Calendar,
+                         lutEnd: Calendar,
+                         partitionsPerServer: Int = 1
+                       ) = {
+
+    val rel: AeroRelation = AeroRelation(initialHost, select, partitionsPerServer, lutStart, lutEnd)(cont)
 
     var schema = rel.schema
-    if(rel.schema.nonEmpty) {
+    if (rel.schema.nonEmpty) {
       schema = schema.add(StructField("pk", StringType, nullable = true))
     }
     //    cont.applySchema(rel.buildScan(schema.fieldNames.toArray, Array[Filter]()), schema)
     cont.createDataFrame(rel.buildScan(rel.schema.fieldNames, Array[Filter]()), schema)
   }
-
 
 }
 

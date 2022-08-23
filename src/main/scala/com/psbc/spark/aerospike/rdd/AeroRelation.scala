@@ -11,11 +11,14 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Row, SQLContext}
 
 import java.lang
+import java.util.Calendar
 import scala.collection.JavaConverters._
 
 case class AeroRelation(initialHost: String,
                         select: String,
                         partitionsPerServer: Int = 1,
+                        lutStart: Calendar,
+                        lutEnd: Calendar,
                         useUdfWithoutIndexQuery: Boolean = false)(@transient val sqlContext: SQLContext)
   extends BaseRelation with PrunedFilteredScan {
 
@@ -27,6 +30,8 @@ case class AeroRelation(initialHost: String,
   var filterBinCache: String = null
   var filterValsCache: Seq[(Long, Long)] = null
   var filterStringValCache: String = null
+  var lutStartCachs: Calendar = lutStart
+  var lutEndCachs: Calendar = lutEnd
 
   override def schema: StructType = {
 
@@ -172,14 +177,14 @@ case class AeroRelation(initialHost: String,
           tuples = (0 until partitionsPerServer)
             .map(i => (lower + divided * i, if (i == partitionsPerServer - 1) upper else lower + divided * (i + 1) - 1))
         }
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples, allFilters, schemaCache, useUdfWithoutIndexQuery)
+        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, lutStartCachs, lutEndCachs, tuples, allFilters, schemaCache, useUdfWithoutIndexQuery)
       }
       else {
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache, allFilters, schemaCache, useUdfWithoutIndexQuery)
+        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, lutStartCachs, lutEndCachs, filterValsCache, allFilters, schemaCache, useUdfWithoutIndexQuery)
       }
     }
     else {
-      new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
+      new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, lutStartCachs, lutEndCachs, filterValsCache)
     }
   }
 }
