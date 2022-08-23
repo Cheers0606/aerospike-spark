@@ -5,6 +5,7 @@ Aerospike Spark Connector
 * 并行查询本地Aerospike节点（允许从单个服务器并行读取范围查询）
   
 使用例子:
+参考 src/main/scala/com/psbc/spark/SparkApp.scala
 
 - scala版本
 ```scala
@@ -26,6 +27,8 @@ object SparkApp {
 }
 ```
 - java版本
+
+参考 src/main/java/com/psbc/spark/aerospike/SparkApp.java
 
 ```java
 import org.apache.spark.SparkConf;
